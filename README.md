@@ -7,6 +7,7 @@ var base45 = new Base45();
 var messageText = "Hello world";
 var messageBytes = System.Text.Encoding.UTF8.GetBytes(messageText);
 var b45Encoded = base45.Encode(messageBytes);
+```
 
 ## Encoding usage (2)
 ```c#
