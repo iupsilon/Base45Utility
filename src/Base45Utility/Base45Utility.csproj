@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <Authors>Yari Melzani</Authors>
+        <Description>Base45 encode and decode utility</Description>
+        <Copyright>Yari Melzani</Copyright>
+        <Company>Yari Melzani</Company>
+        <AssemblyVersion>1.1</AssemblyVersion>
+        <FileVersion>1.0</FileVersion>
+        <TargetFrameworks>netstandard2.0</TargetFrameworks>
+        <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+        <PackageVersion>1.1.0</PackageVersion>
+        <Title>Base45 utility</Title>
+    </PropertyGroup>
+
+</Project>

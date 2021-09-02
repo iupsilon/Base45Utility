@@ -1,0 +1,22 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Base45Utility", "Base45Utility\Base45Utility.csproj", "{8D6EC06B-702D-4874-B36A-65D9BCAFCA91}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Base45Test", "Base45Test\Base45Test.csproj", "{779A2CBC-9E4D-4F9F-B5EB-E551317B2A0B}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{8D6EC06B-702D-4874-B36A-65D9BCAFCA91}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8D6EC06B-702D-4874-B36A-65D9BCAFCA91}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8D6EC06B-702D-4874-B36A-65D9BCAFCA91}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8D6EC06B-702D-4874-B36A-65D9BCAFCA91}.Release|Any CPU.Build.0 = Release|Any CPU
+		{779A2CBC-9E4D-4F9F-B5EB-E551317B2A0B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{779A2CBC-9E4D-4F9F-B5EB-E551317B2A0B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{779A2CBC-9E4D-4F9F-B5EB-E551317B2A0B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{779A2CBC-9E4D-4F9F-B5EB-E551317B2A0B}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
