@@ -11,6 +11,11 @@
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
         <PackageVersion>1.1.0</PackageVersion>
         <Title>Base45 utility</Title>
+        <PackageProjectUrl>https://github.com/iupsilon/Base45Utility</PackageProjectUrl>
+        <PackageLicenseUrl>https://www.apache.org/licenses/LICENSE-2.0</PackageLicenseUrl>
+        <RepositoryUrl>https://github.com/iupsilon/Base45Utility</RepositoryUrl>
+        <RepositoryType>GitHub</RepositoryType>
+        <PackageTags>Base45 encoding decoding</PackageTags>
     </PropertyGroup>
 
 </Project>
