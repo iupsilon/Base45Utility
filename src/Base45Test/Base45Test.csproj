@@ -17,4 +17,10 @@
       <ProjectReference Include="..\Base45Utility\Base45Utility.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+      <None Update="Utf8TestFile.txt">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </None>
+    </ItemGroup>
+
 </Project>

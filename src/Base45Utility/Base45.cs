@@ -32,13 +32,48 @@ namespace Base45Utility
         const int SmallEncodedChunkSize = 2;
         const int ByteSize = 256;
 
-        readonly char[] Base45Digits =
+        static readonly char[] Base45Digits =
         {
             '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C',
             'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P',
             'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', ' ', '$', '%',
             '*', '+', '-', '.', '/', ':'
         };
+
+        /// <summary>
+        /// Synchronization object
+        /// </summary>
+        private static readonly object SyncRoot = new object();
+        private static int[] _internalFromBase45;
+
+        /// <summary>
+        /// Computes base45 decoding table (thread safe)
+        /// </summary>
+        /// <returns></returns>
+        static int[] GetFromBase45()
+        {
+            if (_internalFromBase45 == null)
+            {
+                lock (SyncRoot)
+                {
+                    if (_internalFromBase45 == null)
+                    {
+                        int[] localFromBase45 = Enumerable.Repeat(-1, 256).ToArray();
+
+                        for (int i = 0; i < Base45Digits.Length; i++)
+                        {
+                            localFromBase45[Base45Digits[i]] = i;
+                        }
+
+                        _internalFromBase45 = localFromBase45;
+                    }
+                }
+            }
+
+            return _internalFromBase45;
+        }
+
+        #region Encode
 
         /// <summary>
         /// Encode input string in Base45
@@ -85,6 +120,10 @@ namespace Base45Utility
             return result;
         }
 
+        #endregion
+
+        #region Decode
+
         /// <summary>
         /// Decode encoded Base45 input string to byte array 
         /// </summary>
@@ -93,17 +132,10 @@ namespace Base45Utility
         /// <exception cref="InvalidOperationException"></exception>
         public byte[] Decode(string src)
         {
-            // Todo: fromBase45 can be precalculated
-            int[] fromBase45 = Enumerable.Repeat(-1, 256).ToArray();
-
-            for (int i = 0; i < Base45Digits.Length; i++)
-            {
-                fromBase45[Base45Digits[i]] = i;
-            }
-
             int remainderSize = src.Length % EncodedChunkSize;
 
             int[] buffer = new int[src.Length];
+            var fromBase45 = GetFromBase45();
             for (int i = 0; i < src.Length; ++i)
             {
                 buffer[i] = fromBase45[src[i]];
@@ -148,5 +180,7 @@ namespace Base45Utility
             var decodedString = System.Text.Encoding.UTF8.GetString(decodedBytes, 0, decodedBytes.Length);
             return decodedString;
         }
+
+        #endregion
     }
 }
