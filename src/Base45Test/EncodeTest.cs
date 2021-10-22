@@ -55,7 +55,8 @@ namespace Base45Test
         public void CompleteUtf8EncodeBytesTest()
         {
             var base45 = new Base45();
-            var messageText = File.ReadAllText(Path.Combine(AssemblyDirectory, "Utf8TestFile.txt"));
+            var assemblyDirectory = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+            var messageText = File.ReadAllText(Path.Combine(assemblyDirectory, "Utf8TestFile.txt"));
             var messageBytes = System.Text.Encoding.UTF8.GetBytes(messageText);
             var base45EncodedFromBytes = base45.Encode(messageBytes);
             var base45EncodedFromText = base45.Encode(messageText);
@@ -66,17 +67,6 @@ namespace Base45Test
             Assert.AreEqual(expectedEncoded, base45EncodedFromText);
             var base45Decoded = base45.DecodeAsString(base45EncodedFromBytes);
             Assert.AreEqual(messageText, base45Decoded);
-        }
-
-        public static string AssemblyDirectory
-        {
-            get
-            {
-                string codeBase = Assembly.GetExecutingAssembly().CodeBase;
-                UriBuilder uri = new UriBuilder(codeBase);
-                string path = Uri.UnescapeDataString(uri.Path);
-                return Path.GetDirectoryName(path);
-            }
         }
     }
 }
