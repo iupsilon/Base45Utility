@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using Base45Utility;
 using NUnit.Framework;
@@ -22,8 +23,11 @@ namespace Base45Test
             var base45Encoded = base45.Encode(messageBytes);
 
             Assert.AreEqual("%69 VD82EK4F.KEA2", base45Encoded);
-            var base45Decoded = base45.DecodeAsString(base45Encoded);
-            Assert.AreEqual(messageText, base45Decoded);
+            var base45DecodedAsString = base45.DecodeAsString(base45Encoded);
+            Assert.AreEqual(messageText, base45DecodedAsString);
+            
+            var base45DecodedAsBytes = base45.Decode(base45Encoded);
+            Assert.IsTrue(base45DecodedAsBytes.SequenceEqual(messageBytes));
         }
 
         [Test]
