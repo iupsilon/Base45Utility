@@ -82,7 +82,7 @@ namespace Base45Utility
         /// <returns>utf8 Base45 encoded string</returns>
         public string Encode(string src)
         {
-            var srcBytes = System.Text.Encoding.Unicode.GetBytes(src);
+            var srcBytes = System.Text.Encoding.UTF8.GetBytes(src);
             var result = Encode(srcBytes);
             return result;
         }

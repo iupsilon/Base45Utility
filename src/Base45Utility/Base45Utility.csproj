@@ -5,11 +5,11 @@
         <Description>Base45 encode and decode utility</Description>
         <Copyright>Yari Melzani</Copyright>
         <Company>Yari Melzani</Company>
-        <AssemblyVersion>1.2</AssemblyVersion>
-        <FileVersion>1.2</FileVersion>
+        <AssemblyVersion>1.3</AssemblyVersion>
+        <FileVersion>1.3</FileVersion>
         <TargetFrameworks>netstandard2.0</TargetFrameworks>
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-        <PackageVersion>1.2.0</PackageVersion>
+        <PackageVersion>1.3.0</PackageVersion>
         <Title>Base45 utility</Title>
         <PackageProjectUrl>https://github.com/iupsilon/Base45Utility</PackageProjectUrl>
         <PackageLicenseUrl>https://www.apache.org/licenses/LICENSE-2.0</PackageLicenseUrl>
@@ -17,5 +17,4 @@
         <RepositoryType>GitHub</RepositoryType>
         <PackageTags>Base45 encoding decoding</PackageTags>
     </PropertyGroup>
-
 </Project>
