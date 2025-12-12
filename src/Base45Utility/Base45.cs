@@ -16,7 +16,6 @@ limitations under the License.
  */
 
 using System;
-using System.Linq;
 
 namespace Base45Utility
 {
@@ -26,13 +25,13 @@ namespace Base45Utility
     /// </summary>
     public class Base45
     {
-        const int BaseSize = 45;
-        const int ChunkSize = 2;
-        const int EncodedChunkSize = 3;
-        const int SmallEncodedChunkSize = 2;
-        const int ByteSize = 256;
+        private const int BaseSize = 45;
+        private const int ChunkSize = 2;
+        private const int EncodedChunkSize = 3;
+        private const int SmallEncodedChunkSize = 2;
+        private const int ByteSize = 256;
 
-        static readonly char[] Base45Digits =
+        private static readonly char[] Base45Digits =
         {
             '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C',
             'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P',
@@ -40,89 +39,60 @@ namespace Base45Utility
             '*', '+', '-', '.', '/', ':'
         };
 
-        /// <summary>
-        /// Synchronization object
-        /// </summary>
-        private static readonly object SyncRoot = new object();
-        private static int[] _internalFromBase45;
+        private static readonly int[] FromBase45;
+
+        static Base45()
+        {
+            FromBase45 = new int[256];
+            for (int i = 0; i < FromBase45.Length; i++) FromBase45[i] = -1;
+            for (int i = 0; i < Base45Digits.Length; i++)
+            {
+                FromBase45[Base45Digits[i]] = i;
+            }
+        }
 
         /// <summary>
         /// Computes base45 decoding table (thread safe)
         /// </summary>
         /// <returns></returns>
-        static int[] GetFromBase45()
+        public string Encode(string src)
         {
-            if (_internalFromBase45 == null)
-            {
-                lock (SyncRoot)
-                {
-                    if (_internalFromBase45 == null)
-                    {
-                        int[] localFromBase45 = Enumerable.Repeat(-1, 256).ToArray();
-
-                        for (int i = 0; i < Base45Digits.Length; i++)
-                        {
-                            localFromBase45[Base45Digits[i]] = i;
-                        }
-
-                        _internalFromBase45 = localFromBase45;
-                    }
-                }
-            }
-
-            return _internalFromBase45;
+            if (src is null) throw new ArgumentNullException(nameof(src));
+            return Encode(System.Text.Encoding.UTF8.GetBytes(src));
         }
-
-        #region Encode
 
         /// <summary>
         /// Encode input string in Base45
         /// </summary>
         /// <param name="src">Input string, utf8 encoded</param>
         /// <returns>utf8 Base45 encoded string</returns>
-        public string Encode(string src)
-        {
-            var srcBytes = System.Text.Encoding.UTF8.GetBytes(src);
-            var result = Encode(srcBytes);
-            return result;
-        }
-
-        /// <summary>
-        /// Encode input byte array in Base45
-        /// </summary>
-        /// <param name="src">Input byte[]</param>
-        /// <returns>utf8 Base45 encoded string</returns>
         public string Encode(byte[] src)
         {
+            if (src is null) throw new ArgumentNullException(nameof(src));
+
             int wholeChunkCount = src.Length / ChunkSize;
-            char[] resultChars = new char[wholeChunkCount * EncodedChunkSize + (src.Length % ChunkSize == 1 ? SmallEncodedChunkSize : 0)];
+            int remainder = src.Length % ChunkSize;
+            char[] result = new char[wholeChunkCount * EncodedChunkSize + (remainder == 1 ? SmallEncodedChunkSize : 0)];
 
-            int resultIndex = 0;
-            int wholeChunkLength = wholeChunkCount * ChunkSize;
-            for (int i = 0; i < wholeChunkLength;)
+            int ri = 0;
+            int i = 0;
+            while (i + 1 < src.Length)
             {
-                int value = (src[i++] & 0xff) * ByteSize + (src[i++] & 0xff);
-                resultChars[resultIndex++] = Base45Digits[value % BaseSize];
-                resultChars[resultIndex++] = Base45Digits[(value / BaseSize) % BaseSize];
-                resultChars[resultIndex++] = Base45Digits[(value / (BaseSize * BaseSize)) % BaseSize];
+                int value = (src[i++] * ByteSize) + src[i++]; // bytes are 0..255
+                result[ri++] = Base45Digits[value % BaseSize];
+                result[ri++] = Base45Digits[(value / BaseSize) % BaseSize];
+                result[ri++] = Base45Digits[(value / (BaseSize * BaseSize)) % BaseSize];
             }
 
-            if (src.Length % ChunkSize != 0)
+            if (remainder == 1)
             {
-                resultChars[resultChars.Length - 2] = Base45Digits[(src[src.Length - 1] & 0xff) % BaseSize];
-                resultChars[resultChars.Length - 1] = (src[src.Length - 1] & 0xff) < BaseSize
-                    ? Base45Digits[0]
-                    : Base45Digits[(src[src.Length - 1] & 0xff) / BaseSize % BaseSize];
+                int b = src[src.Length - 1];
+                result[ri++] = Base45Digits[b % BaseSize];
+                result[ri] = (b < BaseSize) ? Base45Digits[0] : Base45Digits[(b / BaseSize) % BaseSize];
             }
 
-
-            var result = new string(resultChars);
-            return result;
+            return new string(result);
         }
-
-        #endregion
-
-        #region Decode
 
         /// <summary>
         /// Decode encoded Base45 input string to byte array 
@@ -132,38 +102,36 @@ namespace Base45Utility
         /// <exception cref="InvalidOperationException"></exception>
         public byte[] Decode(string src)
         {
-            int remainderSize = src.Length % EncodedChunkSize;
+            if (src is null) throw new ArgumentNullException(nameof(src));
+            int len = src.Length;
+            int remainderSize = len % EncodedChunkSize;
 
-            int[] buffer = new int[src.Length];
-            var fromBase45 = GetFromBase45();
-            for (int i = 0; i < src.Length; ++i)
+            int[] buffer = new int[len];
+            for (int i = 0; i < len; i++)
             {
-                buffer[i] = fromBase45[src[i]];
-                if (buffer[i] == -1)
-                {
+                int idx = src[i];
+                if (idx >= FromBase45.Length || FromBase45[idx] == -1)
                     throw new InvalidOperationException("Wrong input string");
-                }
+                buffer[i] = FromBase45[idx];
             }
 
-            int wholeChunkCount = buffer.Length / EncodedChunkSize;
+            int wholeChunkCount = len / EncodedChunkSize;
             byte[] result = new byte[wholeChunkCount * ChunkSize + (remainderSize == ChunkSize ? 1 : 0)];
-            int resultIndex = 0;
-            int wholeChunkLength = wholeChunkCount * EncodedChunkSize;
-            for (int i = 0; i < wholeChunkLength;)
-            {
-                int val = buffer[i++] + BaseSize * buffer[i++] + BaseSize * BaseSize * buffer[i++];
-                if (val > 0xFFFF)
-                {
-                    throw new InvalidOperationException("Wrong input string");
-                }
 
-                result[resultIndex++] = (byte) (val / ByteSize);
-                result[resultIndex++] = (byte) (val % ByteSize);
+            int ri = 0;
+            int bi = 0;
+            for (; bi < wholeChunkCount * EncodedChunkSize; bi += EncodedChunkSize)
+            {
+                int val = buffer[bi] + BaseSize * buffer[bi + 1] + BaseSize * BaseSize * buffer[bi + 2];
+                if (val > 0xFFFF) throw new InvalidOperationException("Wrong input string");
+                result[ri++] = (byte)(val / ByteSize);
+                result[ri++] = (byte)(val % ByteSize);
             }
 
-            if (remainderSize != 0)
+            if (remainderSize == ChunkSize)
             {
-                result[resultIndex] = (byte) (buffer[buffer.Length - 2] + BaseSize * buffer[buffer.Length - 1]);
+                int last = buffer[len - 2] + BaseSize * buffer[len - 1];
+                result[ri] = (byte)last;
             }
 
             return result;
@@ -176,11 +144,8 @@ namespace Base45Utility
         /// <returns>utf8 decoded string</returns>
         public string DecodeAsString(string src)
         {
-            var decodedBytes = Decode(src);
-            var decodedString = System.Text.Encoding.UTF8.GetString(decodedBytes, 0, decodedBytes.Length);
-            return decodedString;
+            var bytes = Decode(src);
+            return System.Text.Encoding.UTF8.GetString(bytes, 0, bytes.Length);
         }
-
-        #endregion
     }
 }
