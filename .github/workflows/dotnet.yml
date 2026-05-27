@@ -62,3 +62,10 @@ jobs:
           --api-key ${{ secrets.GITHUB_TOKEN }}
           --source https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json
           --skip-duplicate
+
+      - name: Push to NuGet.org
+        run: >-
+          dotnet nuget push "${{ github.workspace }}/artifacts/*.nupkg"
+          --api-key ${{ secrets.NUGET_API_KEY }}
+          --source https://api.nuget.org/v3/index.json
+          --skip-duplicate
