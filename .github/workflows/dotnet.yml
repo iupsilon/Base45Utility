@@ -48,9 +48,12 @@ jobs:
 
       - name: Pack
         # Package version is taken from <PackageVersion> in Base45Utility.csproj.
+        # GeneratePackageOnBuild is disabled here so `pack` builds every target
+        # framework before packing (avoids NU5026 on multi-targeted projects).
         run: >-
           dotnet pack src/Base45Utility/Base45Utility.csproj
           --configuration Release
+          -p:GeneratePackageOnBuild=false
           --output ${{ github.workspace }}/artifacts
 
       - name: Push to GitHub Packages
