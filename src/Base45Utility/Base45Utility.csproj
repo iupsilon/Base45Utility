@@ -16,7 +16,12 @@
         <RepositoryUrl>https://github.com/iupsilon/Base45Utility</RepositoryUrl>
         <RepositoryType>GitHub</RepositoryType>
         <PackageTags>Base45 encoding decoding</PackageTags>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
         <SignAssembly>true</SignAssembly>
         <AssemblyOriginatorKeyFile>SigningKey.snk</AssemblyOriginatorKeyFile>
     </PropertyGroup>
+
+    <ItemGroup>
+        <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+    </ItemGroup>
 </Project>
