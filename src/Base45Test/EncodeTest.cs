@@ -154,5 +154,83 @@ namespace Base45Test
             Assert.Throws<InvalidOperationException>(() => base45.Decode("!"));
             Assert.Throws<InvalidOperationException>(() => base45.Decode("%!")); // mixed valid/invalid
         }
+
+        [Test]
+        public void DecodeInvalidLength_ThrowsInvalidOperationException()
+        {
+            var base45 = new Base45();
+            // Valid Base45 lengths are 3n or 3n+2; a length of 3n+1 is illegal even with valid chars.
+            Assert.Throws<InvalidOperationException>(() => base45.Decode("0"));    // len 1
+            Assert.Throws<InvalidOperationException>(() => base45.Decode("0000")); // len 4
+        }
+
+        [Test]
+        public void DecodeRemainderOutOfRange_ThrowsInvalidOperationException()
+        {
+            var base45 = new Base45();
+            // ':' has index 44, so "::" decodes to 44 + 45*44 = 2024, which cannot be a single byte.
+            Assert.Throws<InvalidOperationException>(() => base45.Decode("::"));
+        }
+
+        [Test]
+        public void DecodeMaxSingleByte_DoesNotThrowAndRoundtrips()
+        {
+            var base45 = new Base45();
+            // "U5" is the canonical encoding of the byte 255 (30 + 45*5).
+            var decoded = base45.Decode("U5");
+            Assert.IsTrue(decoded.SequenceEqual(new byte[] { 255 }));
+        }
+
+        [Test]
+        public void SpanEncode_MatchesArrayEncode()
+        {
+            var base45 = new Base45();
+            var bytes = Encoding.UTF8.GetBytes("Hello world");
+
+            var fromArray = base45.Encode(bytes);
+            var fromSpan = base45.Encode(bytes.AsSpan());
+
+            Assert.AreEqual("%69 VD82EK4F.KEA2", fromSpan);
+            Assert.AreEqual(fromArray, fromSpan);
+            Assert.AreEqual(string.Empty, base45.Encode(ReadOnlySpan<byte>.Empty));
+        }
+
+        [Test]
+        public void SpanDecode_RoundtripsIntoCallerBuffer()
+        {
+            var base45 = new Base45();
+            const string encoded = "%69 VD82EK4F.KEA2";
+
+            Span<byte> destination = new byte[64];
+            int written = base45.Decode(encoded.AsSpan(), destination);
+
+            Assert.AreEqual("Hello world", Encoding.UTF8.GetString(destination.Slice(0, written).ToArray()));
+        }
+
+        [Test]
+        public void SpanDecode_DestinationTooSmall_ThrowsArgumentException()
+        {
+            var base45 = new Base45();
+            Assert.Throws<ArgumentException>(() =>
+            {
+                Span<byte> tooSmall = new byte[1];
+                base45.Decode("%69 VD82EK4F.KEA2".AsSpan(), tooSmall);
+            });
+        }
+
+        [Test]
+        public void SpanEncodeDecode_AllByteValues_Roundtrip()
+        {
+            var base45 = new Base45();
+            var all = Enumerable.Range(0, 256).Select(i => (byte)i).ToArray();
+
+            var encoded = base45.Encode(all.AsSpan());
+
+            Span<byte> destination = new byte[all.Length];
+            int written = base45.Decode(encoded.AsSpan(), destination);
+
+            Assert.AreEqual(all.Length, written);
+            Assert.IsTrue(destination.SequenceEqual(all));
+        }
     }
 }

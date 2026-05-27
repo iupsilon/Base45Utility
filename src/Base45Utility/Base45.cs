@@ -1,4 +1,4 @@
-﻿/*
+/*
  Copyright 2021 De Staat der Nederlanden, Ministerie van Volksgezondheid, Welzijn en Sport.
  Modifications copyright (C) 2021 Yari Melzani
 
@@ -43,7 +43,7 @@ namespace Base45Utility
 
         static Base45()
         {
-            FromBase45 = new int[256];
+            FromBase45 = new int[ByteSize];
             for (int i = 0; i < FromBase45.Length; i++) FromBase45[i] = -1;
             for (int i = 0; i < Base45Digits.Length; i++)
             {
@@ -52,9 +52,10 @@ namespace Base45Utility
         }
 
         /// <summary>
-        /// Computes base45 decoding table (thread safe)
+        /// Encode a string (treated as UTF-8) in Base45.
         /// </summary>
-        /// <returns></returns>
+        /// <param name="src">Input string</param>
+        /// <returns>Base45 encoded string</returns>
         public string Encode(string src)
         {
             if (src is null) throw new ArgumentNullException(nameof(src));
@@ -62,21 +63,130 @@ namespace Base45Utility
         }
 
         /// <summary>
-        /// Encode input string in Base45
+        /// Encode a byte array in Base45.
         /// </summary>
-        /// <param name="src">Input string, utf8 encoded</param>
-        /// <returns>utf8 Base45 encoded string</returns>
+        /// <param name="src">Input bytes</param>
+        /// <returns>Base45 encoded string</returns>
         public string Encode(byte[] src)
         {
             if (src is null) throw new ArgumentNullException(nameof(src));
 
-            int wholeChunkCount = src.Length / ChunkSize;
-            int remainder = src.Length % ChunkSize;
-            char[] result = new char[wholeChunkCount * EncodedChunkSize + (remainder == 1 ? SmallEncodedChunkSize : 0)];
+            int outLen = ComputeEncodedLength(src.Length);
+            if (outLen == 0) return string.Empty;
 
+#if NET8_0_OR_GREATER
+            // string.Create writes straight into the final string buffer (no intermediate copy).
+            return string.Create(outLen, src, static (dst, state) => EncodeInto(state, dst));
+#else
+            char[] result = new char[outLen];
+            EncodeInto(src, result);
+            return new string(result);
+#endif
+        }
+
+#if NET8_0_OR_GREATER
+        /// <summary>
+        /// Encode a span of bytes in Base45 without copying the input.
+        /// </summary>
+        /// <param name="src">Input bytes</param>
+        /// <returns>Base45 encoded string</returns>
+        public string Encode(ReadOnlySpan<byte> src)
+        {
+            int outLen = ComputeEncodedLength(src.Length);
+            if (outLen == 0) return string.Empty;
+
+            char[] rented = System.Buffers.ArrayPool<char>.Shared.Rent(outLen);
+            try
+            {
+                EncodeInto(src, rented.AsSpan(0, outLen));
+                return new string(rented, 0, outLen);
+            }
+            finally
+            {
+                System.Buffers.ArrayPool<char>.Shared.Return(rented);
+            }
+        }
+#endif
+
+        /// <summary>
+        /// Decode a Base45 string into a byte array.
+        /// </summary>
+        /// <param name="src">Base45 encoded string</param>
+        /// <returns>Decoded bytes</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="src"/> is null.</exception>
+        /// <exception cref="InvalidOperationException">The input is not valid Base45 (bad length, illegal character or out-of-range group).</exception>
+        public byte[] Decode(string src)
+        {
+            if (src is null) throw new ArgumentNullException(nameof(src));
+
+            int outLen = ComputeDecodedLength(src.Length);
+            byte[] result = new byte[outLen];
+#if NET8_0_OR_GREATER
+            DecodeInto(src.AsSpan(), result);
+#else
+            DecodeInto(src, result);
+#endif
+            return result;
+        }
+
+#if NET8_0_OR_GREATER
+        /// <summary>
+        /// Decode a Base45 char span into a caller-provided buffer.
+        /// </summary>
+        /// <param name="src">Base45 encoded characters</param>
+        /// <param name="destination">Buffer that receives the decoded bytes</param>
+        /// <returns>Number of bytes written to <paramref name="destination"/>.</returns>
+        /// <exception cref="ArgumentException"><paramref name="destination"/> is too small.</exception>
+        /// <exception cref="InvalidOperationException">The input is not valid Base45.</exception>
+        public int Decode(ReadOnlySpan<char> src, Span<byte> destination)
+        {
+            int outLen = ComputeDecodedLength(src.Length);
+            if (destination.Length < outLen)
+                throw new ArgumentException("Destination buffer is too small", nameof(destination));
+
+            DecodeInto(src, destination.Slice(0, outLen));
+            return outLen;
+        }
+#endif
+
+        /// <summary>
+        /// Decode a Base45 string into a UTF-8 string.
+        /// </summary>
+        /// <param name="src">Base45 encoded string</param>
+        /// <returns>Decoded UTF-8 string</returns>
+        public string DecodeAsString(string src)
+        {
+            byte[] bytes = Decode(src);
+            return System.Text.Encoding.UTF8.GetString(bytes, 0, bytes.Length);
+        }
+
+        private static int ComputeEncodedLength(int byteCount)
+        {
+            int wholeChunkCount = byteCount / ChunkSize;
+            int remainder = byteCount % ChunkSize;
+            return wholeChunkCount * EncodedChunkSize + (remainder == 1 ? SmallEncodedChunkSize : 0);
+        }
+
+        private static int ComputeDecodedLength(int charCount)
+        {
+            int remainderSize = charCount % EncodedChunkSize;
+            // Valid Base45 strings have length 3n or 3n+2; a leftover of one char is impossible.
+            if (remainderSize == 1)
+                throw new InvalidOperationException("Wrong input length");
+
+            return (charCount / EncodedChunkSize) * ChunkSize + (remainderSize == ChunkSize ? 1 : 0);
+        }
+
+#if NET8_0_OR_GREATER
+        private static void EncodeInto(ReadOnlySpan<byte> src, Span<char> result)
+#else
+        private static void EncodeInto(byte[] src, char[] result)
+#endif
+        {
+            int n = src.Length;
             int ri = 0;
             int i = 0;
-            while (i + 1 < src.Length)
+            while (i + 1 < n)
             {
                 int value = (src[i++] * ByteSize) + src[i++]; // bytes are 0..255
                 result[ri++] = Base45Digits[value % BaseSize];
@@ -84,68 +194,46 @@ namespace Base45Utility
                 result[ri++] = Base45Digits[(value / (BaseSize * BaseSize)) % BaseSize];
             }
 
-            if (remainder == 1)
+            if ((n & 1) == 1)
             {
-                int b = src[src.Length - 1];
+                int b = src[n - 1];
                 result[ri++] = Base45Digits[b % BaseSize];
-                result[ri] = (b < BaseSize) ? Base45Digits[0] : Base45Digits[(b / BaseSize) % BaseSize];
+                result[ri] = Base45Digits[(b / BaseSize) % BaseSize]; // b < 45 already yields '0'
             }
-
-            return new string(result);
         }
 
-        /// <summary>
-        /// Decode encoded Base45 input string to byte array 
-        /// </summary>
-        /// <param name="src">input byte array</param>
-        /// <returns>decoded byte array</returns>
-        /// <exception cref="InvalidOperationException"></exception>
-        public byte[] Decode(string src)
+#if NET8_0_OR_GREATER
+        private static void DecodeInto(ReadOnlySpan<char> src, Span<byte> result)
+#else
+        private static void DecodeInto(string src, byte[] result)
+#endif
         {
-            if (src is null) throw new ArgumentNullException(nameof(src));
             int len = src.Length;
-            int remainderSize = len % EncodedChunkSize;
-
-            int[] buffer = new int[len];
-            for (int i = 0; i < len; i++)
-            {
-                int idx = src[i];
-                if (idx >= FromBase45.Length || FromBase45[idx] == -1)
-                    throw new InvalidOperationException("Wrong input string");
-                buffer[i] = FromBase45[idx];
-            }
-
             int wholeChunkCount = len / EncodedChunkSize;
-            byte[] result = new byte[wholeChunkCount * ChunkSize + (remainderSize == ChunkSize ? 1 : 0)];
 
             int ri = 0;
             int bi = 0;
-            for (; bi < wholeChunkCount * EncodedChunkSize; bi += EncodedChunkSize)
+            for (int c = 0; c < wholeChunkCount; c++)
             {
-                int val = buffer[bi] + BaseSize * buffer[bi + 1] + BaseSize * BaseSize * buffer[bi + 2];
+                int val = Lookup(src[bi++]) + BaseSize * Lookup(src[bi++]) + BaseSize * BaseSize * Lookup(src[bi++]);
                 if (val > 0xFFFF) throw new InvalidOperationException("Wrong input string");
                 result[ri++] = (byte)(val / ByteSize);
                 result[ri++] = (byte)(val % ByteSize);
             }
 
-            if (remainderSize == ChunkSize)
+            if (len % EncodedChunkSize == ChunkSize)
             {
-                int last = buffer[len - 2] + BaseSize * buffer[len - 1];
+                int last = Lookup(src[bi++]) + BaseSize * Lookup(src[bi]);
+                if (last > 0xFF) throw new InvalidOperationException("Wrong input string");
                 result[ri] = (byte)last;
             }
-
-            return result;
         }
 
-        /// <summary>
-        /// Decode encoded Base45 input string to a utf8 string 
-        /// </summary>
-        /// <param name="src">utf8 encoded Base45 string</param>
-        /// <returns>utf8 decoded string</returns>
-        public string DecodeAsString(string src)
+        private static int Lookup(char ch)
         {
-            var bytes = Decode(src);
-            return System.Text.Encoding.UTF8.GetString(bytes, 0, bytes.Length);
+            if (ch >= ByteSize || FromBase45[ch] == -1)
+                throw new InvalidOperationException("Wrong input string");
+            return FromBase45[ch];
         }
     }
 }
