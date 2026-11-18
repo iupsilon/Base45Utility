@@ -10,7 +10,7 @@ Base45Utility is a small .NET library that implements Base45 encoding/decoding p
 
 ## Commands
 
-All commands run from the `src/` directory (where `Base45.sln` lives).
+All commands run from the repository root (`Base45.sln` lives in `src/`).
 
 ```bash
 # Build the whole solution
@@ -44,6 +44,13 @@ Key design points worth knowing before changing the encoding/decoding logic:
   static constructor, thread-safe) where non-alphabet chars map to `-1`. `Decode` throws
   `InvalidOperationException` on any non-alphabet character or when a 3-char chunk decodes to a value
   `> 0xFFFF` (which cannot represent two bytes).
+- **Two code paths per target:** the `Span` overloads (`Encode(ReadOnlySpan<byte>)`,
+  `Decode(ReadOnlySpan<char>, Span<byte>)`) and the span-based internals exist only under
+  `#if NET8_0_OR_GREATER`; `netstandard2.0` compiles a separate array/string path. A logic change
+  must be made in both branches, and tests (which never run on `netstandard2.0`) only exercise the
+  net8+ path.
+- **Length validation:** `ComputeDecodedLength` rejects inputs of length `3n+1` with
+  `InvalidOperationException` before any decoding happens.
 - **String overloads assume UTF-8:** `Encode(string)` and `DecodeAsString(string)` go through
   `System.Text.Encoding.UTF8`. The Base45 alphabet itself is ASCII, so the encoded string is
   treated as UTF-8 too.
@@ -63,5 +70,13 @@ rejection. The `"Hello world"` → `"%69 VD82EK4F.KEA2"` vector is the canonical
   `SigningKey.snk` is required to build the library and is committed to the repo.
 - Package metadata (version, authors, tags) lives in `Base45Utility.csproj`. Bump
   `AssemblyVersion`, `FileVersion`, and `PackageVersion` together for a release.
+
+## CI / release
+
+`.github/workflows/dotnet.yml` builds and tests (Release, net8/9/10) on pushes and PRs to `master`.
+Pushing a `v*` tag additionally runs the `publish` job, which packs and pushes the package to both
+GitHub Packages and NuGet.org (`--skip-duplicate`). The package version comes from `PackageVersion`
+in the csproj, not from the tag, so bump the csproj before tagging. The publish job packs with
+`-p:GeneratePackageOnBuild=false` to avoid NU5026 on the multi-targeted project; keep that flag.
 </content>
 </invoke>
